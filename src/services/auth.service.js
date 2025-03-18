@@ -7,6 +7,8 @@ const { User } = db;
 
 dotenv.config();
 
+import { AuthError, ValidationError } from "../utils/errors.js";
+
 export const registerUser = async ({
   fullName,
   email,
@@ -30,11 +32,11 @@ export const registerUser = async ({
 
 export const loginUser = async ({ email, password }) => {
   const user = await User.findOne({ where: { email } });
-  if (!user) throw new Error("Email không tồn tại");
+  if (!user) throw new AuthError("Email không tồn tại");
 
   // So sánh password
   const isMatch = await user.comparePassword(password);
-  if (!isMatch) throw new Error("Mật khẩu không chính xác");
+  if (!isMatch) throw new AuthError("Mật khẩu không chính xác");
 
   // Tạo payload và cấp JWT token
   const payload = { id: user.id, email: user.email, role: user.role };
@@ -43,3 +45,4 @@ export const loginUser = async ({ email, password }) => {
   });
   return { token, user };
 };
+//file này

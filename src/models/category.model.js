@@ -1,12 +1,25 @@
 "use strict";
 const { Model } = require("sequelize");
+const slugify = require("slugify");
 
 module.exports = (sequelize, DataTypes) => {
   class Category extends Model {
     static associate(models) {
-      Category.hasMany(models.Product, { foreignKey: "categoryId" });
-      Category.belongsTo(Category, { as: "parent", foreignKey: "parentId" });
-      Category.hasMany(Category, { as: "children", foreignKey: "parentId" });
+      // Liên kết với sản phẩm
+      Category.hasMany(models.Product, {
+        foreignKey: "categoryId",
+        as: "products",
+      });
+
+      // Self-reference cho cấu trúc category phân cấp
+      Category.belongsTo(Category, {
+        as: "parent",
+        foreignKey: "parentId",
+      });
+      Category.hasMany(Category, {
+        as: "children",
+        foreignKey: "parentId",
+      });
     }
   }
 
@@ -15,25 +28,18 @@ module.exports = (sequelize, DataTypes) => {
       name: {
         type: DataTypes.STRING,
         allowNull: false,
-        unique: true,
         validate: {
           notEmpty: true,
+          len: [2, 100],
         },
       },
       slug: {
         type: DataTypes.STRING,
         allowNull: false,
         unique: true,
-        validate: {
-          notEmpty: true,
-        },
       },
       description: {
         type: DataTypes.TEXT,
-        allowNull: true,
-      },
-      imageUrl: {
-        type: DataTypes.STRING,
         allowNull: true,
       },
       parentId: {
@@ -44,10 +50,34 @@ module.exports = (sequelize, DataTypes) => {
           key: "id",
         },
       },
+      imageUrl: {
+        type: DataTypes.STRING,
+        allowNull: true,
+      },
+      isActive: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: true,
+      },
+      sortOrder: {
+        type: DataTypes.INTEGER,
+        defaultValue: 0,
+      },
     },
     {
       sequelize,
       modelName: "Category",
+      tableName: "Categories",
+      hooks: {
+        // Tự động tạo slug từ name
+        beforeValidate: (category) => {
+          if (category.name) {
+            category.slug = slugify(category.name, {
+              lower: true,
+              strict: true,
+            });
+          }
+        },
+      },
     }
   );
 
