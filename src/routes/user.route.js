@@ -3,33 +3,43 @@ import { body } from "express-validator";
 import {
   getProfile,
   updateProfile,
+  updatePassword,
   listUsers,
   updateUser,
   removeUser,
+  getUserStats,
 } from "../controllers/user.controller.js";
 import { authenticate, authorize } from "../middlewares/auth.middleware.js";
 
 const router = express.Router();
 
-// Endpoints cho user tự quản lý thông tin (đã đăng nhập)
-router.get("/me", authenticate, getProfile);
+// Routes for regular users
+router.get("/profile", authenticate, getProfile);
+router.put("/profile", authenticate, updateProfile);
 
-router.put(
-  "/me",
+// New route for changing password
+router.post(
+  "/change-password",
   authenticate,
   [
-    body("fullName")
-      .optional()
+    body("currentPassword")
       .notEmpty()
-      .withMessage("Full name không được để trống"),
-    body("email").optional().isEmail().withMessage("Email không hợp lệ"),
+      .withMessage("Mật khẩu hiện tại không được để trống"),
+    body("newPassword")
+      .isLength({ min: 6 })
+      .withMessage("Mật khẩu mới phải có ít nhất 6 ký tự"),
   ],
-  updateProfile
+  updatePassword
 );
 
-// Endpoints quản trị (Admin)
+// Admin routes
 router.get("/", authenticate, authorize("admin"), listUsers);
+
+// New route for user statistics
+router.get("/stats", authenticate, authorize("admin"), getUserStats); //dung de lay thong ke user
+
 router.put("/:id", authenticate, authorize("admin"), updateUser);
+
 router.delete("/:id", authenticate, authorize("admin"), removeUser);
 
 export default router;

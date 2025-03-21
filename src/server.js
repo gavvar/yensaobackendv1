@@ -13,7 +13,12 @@ const app = express();
 // Các middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(cors());
+app.use(
+  cors({
+    origin: "http://localhost:3000", // Đổi thành domain frontend của bạn
+    credentials: true,
+  })
+);
 
 // Quyết định thư mục tĩnh cho uploads (lưu ý xác định đúng đường dẫn cho public/uploads)
 const __filename = fileURLToPath(import.meta.url);
