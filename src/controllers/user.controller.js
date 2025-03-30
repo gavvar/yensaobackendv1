@@ -26,32 +26,6 @@ export const updateProfile = async (req, res, next) => {
   }
 };
 
-// Thêm controller cho thay đổi mật khẩu
-export const updatePassword = async (req, res, next) => {
-  try {
-    const { currentPassword, newPassword } = req.body;
-
-    if (!currentPassword || !newPassword) {
-      return res.status(400).json({
-        success: false,
-        message: "Vui lòng cung cấp cả mật khẩu hiện tại và mật khẩu mới",
-      });
-    }
-
-    const result = await changePassword(
-      req.user.id,
-      currentPassword,
-      newPassword
-    );
-    return res.status(200).json({
-      success: true,
-      message: result.message,
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
 // Cập nhật controller lấy danh sách người dùng để hỗ trợ phân trang và tìm kiếm
 export const listUsers = async (req, res, next) => {
   try {

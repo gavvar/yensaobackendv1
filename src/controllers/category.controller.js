@@ -55,12 +55,18 @@ export const getCategoryBySlug = async (req, res, next) => {
  */
 export const createCategory = async (req, res, next) => {
   try {
-    const categoryData = req.body;
-    const category = await addCategory(categoryData);
+    // Sử dụng service function đã import
+    const newCategory = await addCategory({
+      name: req.body.name,
+      slug: req.body.slug,
+      description: req.body.description,
+      metaTitle: req.body.metaTitle,
+      metaDescription: req.body.metaDescription,
+    });
 
     res.status(201).json({
       success: true,
-      data: category,
+      data: newCategory,
       message: "Danh mục đã được tạo thành công",
     });
   } catch (error) {

@@ -16,6 +16,15 @@ module.exports = {
         unit: "hộp",
         status: "active",
         isFeatured: true,
+        // Các trường mới
+        metaTitle: "Yến sào nguyên tổ loại A - Chất lượng cao",
+        metaDescription:
+          "Yến sào nguyên tổ loại A từ hang động tự nhiên, 100% nguyên chất không tẩm ướp hóa chất",
+        viewCount: 120,
+        saleCount: 25,
+        sku: "YSN-A-100",
+        weight: 100.0,
+        origin: "Khánh Hòa, Việt Nam",
         createdAt: new Date(),
         updatedAt: new Date(),
       },
@@ -32,6 +41,15 @@ module.exports = {
         unit: "hộp",
         status: "active",
         isFeatured: false,
+        // Các trường mới
+        metaTitle: "Yến sào nguyên tổ loại B - Sản phẩm chất lượng",
+        metaDescription:
+          "Yến sào nguyên tổ loại B tự nhiên, được chọn lọc kỹ lưỡng từ các hang động",
+        viewCount: 80,
+        saleCount: 18,
+        sku: "YSN-B-100",
+        weight: 100.0,
+        origin: "Khánh Hòa, Việt Nam",
         createdAt: new Date(),
         updatedAt: new Date(),
       },
@@ -48,6 +66,15 @@ module.exports = {
         unit: "lọ",
         status: "active",
         isFeatured: true,
+        // Các trường mới
+        metaTitle: "Yến chưng đường phèn - Tiện lợi, bổ dưỡng",
+        metaDescription:
+          "Yến chưng đường phèn sẵn, tiện lợi sử dụng, thích hợp cho người bận rộn",
+        viewCount: 200,
+        saleCount: 65,
+        sku: "YCS-DP-70",
+        weight: 70.0,
+        origin: "Sản xuất tại Việt Nam",
         createdAt: new Date(),
         updatedAt: new Date(),
       },

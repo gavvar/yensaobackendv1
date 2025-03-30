@@ -53,6 +53,26 @@ module.exports = {
       );
     }
 
+    // Thêm trường SEO metaTitle nếu chưa có
+    if (!tableInfo.metaTitle) {
+      updates.push(
+        queryInterface.addColumn("Categories", "metaTitle", {
+          type: Sequelize.STRING(255),
+          allowNull: true,
+        })
+      );
+    }
+
+    // Thêm trường SEO metaDescription nếu chưa có
+    if (!tableInfo.metaDescription) {
+      updates.push(
+        queryInterface.addColumn("Categories", "metaDescription", {
+          type: Sequelize.TEXT,
+          allowNull: true,
+        })
+      );
+    }
+
     // Thêm index cho slug nếu cần
     updates.push(
       queryInterface
@@ -84,6 +104,14 @@ module.exports = {
     }
     if (tableInfo.sortOrder) {
       updates.push(queryInterface.removeColumn("Categories", "sortOrder"));
+    }
+    if (tableInfo.metaTitle) {
+      updates.push(queryInterface.removeColumn("Categories", "metaTitle"));
+    }
+    if (tableInfo.metaDescription) {
+      updates.push(
+        queryInterface.removeColumn("Categories", "metaDescription")
+      );
     }
 
     // Xóa index nếu cần

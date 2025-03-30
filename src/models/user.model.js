@@ -6,9 +6,9 @@ module.exports = (sequelize, DataTypes) => {
   class User extends Model {
     static associate(models) {
       // Associations với các model khác
-      // User.hasOne(models.Cart, { foreignKey: "userId", as: "cart" });
+      User.hasMany(models.Cart, { foreignKey: "userId", as: "carts" });
       // // Tạm thời comment lại cho đến khi model khác được tạo
-      // // User.hasMany(models.Order);
+      User.hasMany(models.Order, { foreignKey: "userId", as: "orders" });
       // console.log("Mối quan hệ User với model khác đã bị tạm comment");
       // User.hasMany(models.Review, { foreignKey: "userId", as: "reviews" });
       // User.hasMany(models.Address, { foreignKey: "userId", as: "addresses" });

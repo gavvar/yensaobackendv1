@@ -3,28 +3,21 @@ import bcrypt from "bcryptjs";
 import db from "../models/index.js";
 import { ValidationError } from "../utils/errors.js";
 import config from "../config/auth.js";
-import redis from "../config/redis.js";
-import crypto from "crypto";
 import emailService from "../services/email.service.js";
+import crypto from "crypto";
 
 const { User } = db;
 
 /**
- * Hash key trước khi lưu vào Redis để tăng bảo mật
- * Ngăn chặn timing attacks và user enumeration
- */
-const hashKey = (key) => crypto.createHash("sha256").update(key).digest("hex");
-
-/**
  * Tạo JWT token
  */
-const generateToken = (user, deviceId = null) => {
+const generateToken = (user) => {
   return jwt.sign(
     {
       id: user.id,
       email: user.email,
       role: user.role,
-      device: deviceId,
+      tokenVersion: user.tokenVersion,
     },
     config.jwtSecret,
     { expiresIn: config.jwtExpiration }
@@ -34,7 +27,7 @@ const generateToken = (user, deviceId = null) => {
 /**
  * Đăng ký tài khoản mới
  */
-export const register = async (userData, deviceId = null) => {
+export const register = async (userData) => {
   // Tối ưu hiệu suất: Chỉ lấy id để kiểm tra tồn tại
   const existingUser = await User.findOne({
     where: { email: userData.email.toLowerCase() }, // Đảm bảo email lowercase
@@ -48,23 +41,10 @@ export const register = async (userData, deviceId = null) => {
   // Mặc định là customer
   userData.role = "customer";
   userData.email = userData.email.toLowerCase();
+  userData.tokenVersion = 0; // Khởi tạo tokenVersion
 
   const newUser = await User.create(userData);
-  const token = generateToken(newUser, deviceId);
-
-  // Lưu session vào Redis với deviceId
-  const sessionKey = deviceId
-    ? hashKey(`auth:${newUser.id}:${deviceId}`)
-    : hashKey(`auth:${newUser.id}`);
-
-  await redis.set(
-    sessionKey,
-    JSON.stringify({
-      lastLogin: new Date(),
-      userAgent: userData.userAgent || "unknown",
-    }),
-    { EX: 60 * 60 * 24 * 7 } // 7 days
-  );
+  const token = generateToken(newUser);
 
   return {
     token,
@@ -75,16 +55,19 @@ export const register = async (userData, deviceId = null) => {
 /**
  * Đăng nhập
  */
-export const login = async (
-  email,
-  password,
-  deviceId = null,
-  userAgent = null
-) => {
+export const login = async (email, password, userAgent = null) => {
   // Tối ưu: Chỉ lấy các trường cần thiết
   const user = await User.unscoped().findOne({
     where: { email: email.toLowerCase() }, // Đảm bảo email lowercase
-    attributes: ["id", "email", "password", "role", "isActive", "fullName"],
+    attributes: [
+      "id",
+      "email",
+      "password",
+      "role",
+      "isActive",
+      "fullName",
+      "tokenVersion",
+    ],
   });
 
   if (!user || !user.isActive) {
@@ -97,25 +80,8 @@ export const login = async (
     throw new ValidationError("Email hoặc mật khẩu không chính xác", 401);
   }
 
-  // Kiểm tra và giới hạn số lượng thiết bị đăng nhập đồng thời
-  // nếu cần implement chức năng này trong tương lai
-
-  // Lưu session vào Redis với deviceId
-  const sessionKey = deviceId
-    ? hashKey(`auth:${user.id}:${deviceId}`)
-    : hashKey(`auth:${user.id}`);
-
-  await redis.set(
-    sessionKey,
-    JSON.stringify({
-      lastLogin: new Date(),
-      userAgent: userAgent || "unknown",
-    }),
-    { EX: 60 * 60 * 24 * 7 } // 7 days
-  );
-
-  // Generate token với deviceId
-  const token = generateToken(user, deviceId);
+  // Generate token với tokenVersion
+  const token = generateToken(user);
 
   return {
     token,
@@ -125,12 +91,17 @@ export const login = async (
 
 /**
  * Khởi tạo quá trình đặt lại mật khẩu
- * Với rate limiting để ngăn spam
  */
 export const forgotPassword = async (email) => {
   const user = await User.findOne({
     where: { email: email.toLowerCase() },
-    attributes: ["id", "email", "isActive", "fullName"], // Thêm fullName để sử dụng trong email
+    attributes: [
+      "id",
+      "email",
+      "isActive",
+      "fullName",
+      "passwordResetRequestedAt",
+    ],
   });
 
   if (!user || !user.isActive) {
@@ -141,25 +112,26 @@ export const forgotPassword = async (email) => {
   }
 
   // Chặn spam yêu cầu reset mật khẩu (mỗi 5 phút)
-  const rateLimitKey = hashKey(`reset_attempt:${user.id}`);
-  const isRateLimited = await redis.get(rateLimitKey);
-
-  if (isRateLimited) {
+  if (
+    user.passwordResetRequestedAt &&
+    new Date() - new Date(user.passwordResetRequestedAt) < 5 * 60 * 1000
+  ) {
     throw new ValidationError("Vui lòng đợi trước khi yêu cầu lại", 429);
   }
 
-  // Set rate limit
-  await redis.set(rateLimitKey, "1", { EX: 300 }); // 5 phút
-
   // Tạo unique token với loại "reset"
-  const resetToken = jwt.sign(
-    { id: user.id, type: "reset", timestamp: Date.now() },
-    config.jwtSecret,
-    { expiresIn: "1h" }
-  );
+  const resetToken = crypto.randomBytes(32).toString("hex");
+  const resetTokenHash = crypto
+    .createHash("sha256")
+    .update(resetToken)
+    .digest("hex");
 
-  // Lưu token trong Redis với TTL, sử dụng hash key
-  await redis.set(hashKey(`reset:${user.id}`), resetToken, { EX: 3600 }); // 1 giờ
+  // Lưu token hash và cập nhật thời gian yêu cầu
+  await user.update({
+    resetPasswordToken: resetTokenHash,
+    resetPasswordExpires: new Date(Date.now() + 3600000), // 1 giờ
+    passwordResetRequestedAt: new Date(),
+  });
 
   // Gửi email reset password
   const emailSent = await emailService.sendResetPasswordEmail(
@@ -185,67 +157,49 @@ export const forgotPassword = async (email) => {
  */
 export const resetPassword = async (token, newPassword) => {
   try {
-    // Verify token
-    const decoded = jwt.verify(token, config.jwtSecret);
+    // Hash token để so sánh với giá trị đã lưu
+    const resetTokenHash = crypto
+      .createHash("sha256")
+      .update(token)
+      .digest("hex");
 
-    if (decoded.type !== "reset") {
-      throw new ValidationError("Token không hợp lệ", 400);
+    // Tìm user với token và token chưa hết hạn
+    const user = await User.unscoped().findOne({
+      where: {
+        resetPasswordToken: resetTokenHash,
+        resetPasswordExpires: { [db.Sequelize.Op.gt]: new Date() },
+      },
+    });
+
+    if (!user) {
+      throw new ValidationError("Token đã hết hạn hoặc không hợp lệ", 400);
     }
 
-    // Kiểm tra token trong Redis với hash key
-    const storedToken = await redis.get(hashKey(`reset:${decoded.id}`));
-
-    if (!storedToken || storedToken !== token) {
-      throw new ValidationError("Token đã hết hạn hoặc đã sử dụng", 400);
-    }
-
-    // Tối ưu hiệu suất: Kết hợp tìm và cập nhật trong một query
+    // Hash mật khẩu mới
     const hashedPassword = await bcrypt.hash(newPassword, 10);
-    const updatedRows = await User.update(
-      { password: hashedPassword },
-      { where: { id: decoded.id, isActive: true } }
-    );
 
-    if (updatedRows[0] === 0) {
-      throw new ValidationError(
-        "Không tìm thấy người dùng hoặc tài khoản không hoạt động",
-        404
-      );
-    }
-
-    // Xóa token khỏi Redis để ngăn sử dụng lại
-    await redis.del(hashKey(`reset:${decoded.id}`));
-
-    // Vô hiệu hóa tất cả session hiện tại (log out all devices)
-    // Lấy tất cả session key
-    const sessionPattern = hashKey(`auth:${decoded.id}`) + "*";
-    const keys = await redis.keys(sessionPattern);
-
-    // Xóa tất cả session
-    if (keys.length > 0) {
-      await redis.del(keys);
-    }
+    // Tăng tokenVersion, cập nhật mật khẩu và xóa thông tin reset
+    await user.update({
+      password: hashedPassword,
+      tokenVersion: user.tokenVersion + 1,
+      resetPasswordToken: null,
+      resetPasswordExpires: null,
+      passwordResetRequestedAt: null,
+    });
 
     return {
       message: "Đặt lại mật khẩu thành công",
     };
   } catch (error) {
-    if (error instanceof jwt.JsonWebTokenError) {
-      throw new ValidationError("Token không hợp lệ hoặc đã hết hạn", 400);
-    }
     throw error;
   }
 };
 
 /**
  * Đăng xuất khỏi thiết bị hiện tại
+ * Lưu ý: Cookie sẽ được xóa ở controller
  */
-export const logout = async (userId, deviceId = null) => {
-  const sessionKey = deviceId
-    ? hashKey(`auth:${userId}:${deviceId}`)
-    : hashKey(`auth:${userId}`);
-
-  await redis.del(sessionKey);
+export const logout = async (userId) => {
   return { message: "Đăng xuất thành công" };
 };
 
@@ -253,45 +207,34 @@ export const logout = async (userId, deviceId = null) => {
  * Đăng xuất khỏi tất cả thiết bị
  */
 export const logoutAll = async (userId) => {
-  const sessionPattern = hashKey(`auth:${userId}`) + "*";
-  const keys = await redis.keys(sessionPattern);
-
-  if (keys.length > 0) {
-    await redis.del(keys);
+  const user = await User.findByPk(userId);
+  if (!user) {
+    throw new ValidationError("Người dùng không tồn tại", 404);
   }
+
+  // Tăng tokenVersion để vô hiệu hóa tất cả token hiện tại
+  await user.update({
+    tokenVersion: user.tokenVersion + 1,
+  });
 
   return { message: "Đã đăng xuất khỏi tất cả thiết bị" };
 };
 
 /**
- * Lấy danh sách thiết bị đang đăng nhập
+ * Lấy thông tin phiên đăng nhập
+ * Lưu ý: Không còn chi tiết về từng thiết bị
  */
 export const getActiveDevices = async (userId) => {
-  const sessionPattern = hashKey(`auth:${userId}`) + "*";
-  const keys = await redis.keys(sessionPattern);
-
-  const devices = [];
-  for (const key of keys) {
-    const sessionData = await redis.get(key);
-    if (sessionData) {
-      try {
-        const data = JSON.parse(sessionData);
-        // Extract deviceId từ key nếu có
-        const keyParts = key.split(":");
-        const deviceId = keyParts.length > 2 ? keyParts[2] : "unknown";
-
-        devices.push({
-          deviceId,
-          lastLogin: data.lastLogin,
-          userAgent: data.userAgent,
-        });
-      } catch (e) {
-        console.error("Error parsing session data", e);
-      }
-    }
-  }
-
-  return { devices };
+  // Chỉ trả về thông tin phiên hiện tại vì không còn lưu thông tin nhiều thiết bị
+  return {
+    devices: [
+      {
+        deviceId: "current",
+        lastLogin: new Date(),
+        userAgent: "Current session",
+      },
+    ],
+  };
 };
 
 /**
@@ -299,7 +242,7 @@ export const getActiveDevices = async (userId) => {
  */
 export const changePassword = async (userId, currentPassword, newPassword) => {
   const user = await User.unscoped().findByPk(userId, {
-    attributes: ["id", "password"],
+    attributes: ["id", "password", "tokenVersion"],
   });
 
   if (!user) {
@@ -313,6 +256,7 @@ export const changePassword = async (userId, currentPassword, newPassword) => {
 
   await user.update({
     password: await bcrypt.hash(newPassword, 10),
+    tokenVersion: user.tokenVersion + 1, // Tăng tokenVersion để vô hiệu hóa tất cả token hiện tại
   });
 
   return { message: "Thay đổi mật khẩu thành công" };

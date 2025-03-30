@@ -1,20 +1,26 @@
 export default {
   // JWT configuration
-  jwtSecret:
-    process.env.JWT_SECRET || "your-jwt-secret-key-should-be-long-and-secure",
-  jwtExpiration: process.env.JWT_EXPIRATION || "7d", // 7 days
+  jwtSecret: process.env.JWT_SECRET || "your-secret-key",
+  jwtExpiration: process.env.JWT_EXPIRATION || "7200", // tiêu chuẩn 2h
+  refreshTokenSecret: process.env.REFRESH_SECRET || "your-refresh-secret",
+
+  // Thêm cấu hình cookie
+  cookie: {
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+  },
 
   // Password hashing
   saltRounds: 10,
 
   // Token blacklist options
   tokenBlacklist: {
-    enabled: true,
+    enabled: false,
     expiry: 60 * 60 * 24 * 7, // 7 days (in seconds)
   },
 
   // Device management
-  maxDevicesPerUser: 5, // Maximum number of devices a user can be logged in simultaneously
+  maxDevicesPerUser: 50, // Maximum number of devices a user can be logged in simultaneously
 
   // Rate limiting (attempts per time window)
   rateLimit: {

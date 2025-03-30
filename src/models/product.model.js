@@ -1,11 +1,18 @@
 "use strict";
-const { Model } = require("sequelize");
+const { Model } = require("sequelize"); // Thêm dòng này để import Model
 
 module.exports = (sequelize, DataTypes) => {
   class Product extends Model {
     static associate(models) {
-      Product.belongsTo(models.Category, { foreignKey: "categoryId" });
-      Product.hasMany(models.ProductImage, { foreignKey: "productId" });
+      Product.belongsTo(models.Category, {
+        foreignKey: "categoryId",
+        as: "category", // Cần alias này
+      });
+
+      Product.hasMany(models.ProductImage, {
+        foreignKey: "productId",
+        as: "images", // Cần alias này
+      });
       // Product.hasMany(models.CartItem, { foreignKey: "productId" });
       // Product.hasMany(models.OrderItem, { foreignKey: "productId" });
     }
@@ -79,6 +86,49 @@ module.exports = (sequelize, DataTypes) => {
       isFeatured: {
         type: DataTypes.BOOLEAN,
         defaultValue: false,
+      },
+
+      // Thêm các trường mới
+      metaTitle: {
+        type: DataTypes.STRING(255),
+        allowNull: true,
+      },
+      metaDescription: {
+        type: DataTypes.TEXT,
+        allowNull: true,
+      },
+      viewCount: {
+        type: DataTypes.INTEGER,
+        defaultValue: 0,
+        validate: {
+          isInt: true,
+          min: 0,
+        },
+      },
+      saleCount: {
+        type: DataTypes.INTEGER,
+        defaultValue: 0,
+        validate: {
+          isInt: true,
+          min: 0,
+        },
+      },
+      sku: {
+        type: DataTypes.STRING(50),
+        allowNull: true,
+        unique: true,
+      },
+      weight: {
+        type: DataTypes.DECIMAL(8, 2),
+        allowNull: true,
+        validate: {
+          isDecimal: true,
+          min: 0,
+        },
+      },
+      origin: {
+        type: DataTypes.STRING(100),
+        allowNull: true,
       },
     },
     {

@@ -10,6 +10,7 @@ import {
   changePasswordRequest,
   getActiveSessionsRequest,
   getCurrentUser,
+  refreshTokenHandler,
 } from "../controllers/auth.controller.js";
 import { authenticate } from "../middlewares/auth.middleware.js";
 import emailService from "../services/email.service.js";
@@ -158,5 +159,8 @@ if (process.env.NODE_ENV === "development") {
     }
   });
 }
+
+// Trong auth.route.js
+router.post("/refresh", refreshTokenHandler);
 
 export default router;

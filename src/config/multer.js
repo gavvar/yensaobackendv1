@@ -1,17 +1,14 @@
-const multer = require("multer");
-const path = require("path");
+import multer from "multer";
+import path from "path";
 
 // Cấu hình storage
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    let uploadPath = "public/uploads/";
-
-    if (file.fieldname === "product_images") {
-      uploadPath += "products/";
-    } else if (file.fieldname === "category_image") {
-      uploadPath += "categories/";
+    let uploadPath = "public/uploads/products";
+    // Xác định thư mục lưu trữ dựa vào field name
+    if (file.fieldname === "categoryImage") {
+      uploadPath = "public/uploads/categories";
     }
-
     cb(null, uploadPath);
   },
   filename: function (req, file, cb) {
@@ -21,29 +18,20 @@ const storage = multer.diskStorage({
   },
 });
 
-// Filter file
-const fileFilter = (req, file, cb) => {
-  const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
-  if (allowedTypes.includes(file.mimetype)) {
+// Filter file types
+const fileFilter = function (req, file, cb) {
+  if (file.mimetype.startsWith("image/")) {
     cb(null, true);
   } else {
-    cb(new Error("Chỉ chấp nhận file ảnh (JPEG, PNG, WEBP)"), false);
+    cb(new Error("Chỉ cho phép upload file ảnh"), false);
   }
 };
 
+// Tạo và export multer instance
 const upload = multer({
   storage: storage,
-  limits: {
-    fileSize: 5 * 1024 * 1024, // 5MB
-  },
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
   fileFilter: fileFilter,
 });
 
-module.exports = {
-  productUpload: upload.fields([
-    { name: "thumbnail", maxCount: 1 },
-    { name: "images", maxCount: 5 },
-  ]),
-
-  categoryUpload: upload.single("image"),
-};
+export default upload;

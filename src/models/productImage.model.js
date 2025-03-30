@@ -1,6 +1,5 @@
 "use strict";
 const { Model } = require("sequelize");
-const slugify = require("slugify");
 
 module.exports = (sequelize, DataTypes) => {
   class ProductImage extends Model {
@@ -45,7 +44,6 @@ module.exports = (sequelize, DataTypes) => {
     {
       sequelize,
       modelName: "ProductImage",
-      tableName: "ProductImages",
     }
   );
 

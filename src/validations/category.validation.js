@@ -8,6 +8,8 @@ export const categorySchemas = {
     imageUrl: Joi.string().allow("", null),
     isActive: Joi.boolean().default(true),
     sortOrder: Joi.number().integer(),
+    metaTitle: Joi.string().max(255).optional(),
+    metaDescription: Joi.string().optional(),
   }),
 
   update: Joi.object({
@@ -17,6 +19,8 @@ export const categorySchemas = {
     imageUrl: Joi.string().allow("", null),
     isActive: Joi.boolean(),
     sortOrder: Joi.number().integer(),
+    metaTitle: Joi.string().max(255).optional(),
+    metaDescription: Joi.string().optional(),
   }),
 
   getCategories: Joi.object({

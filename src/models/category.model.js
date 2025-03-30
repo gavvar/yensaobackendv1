@@ -62,6 +62,14 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.INTEGER,
         defaultValue: 0,
       },
+      metaTitle: {
+        type: DataTypes.STRING(255),
+        allowNull: true,
+      },
+      metaDescription: {
+        type: DataTypes.TEXT,
+        allowNull: true,
+      },
     },
     {
       sequelize,
